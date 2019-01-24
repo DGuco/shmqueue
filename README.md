@@ -6,7 +6,7 @@
   ![原理图](https://github.com/DGuco/shmqueue/raw/master/ringbuff.png)<br>
   [详细介绍](http://blog.csdn.net/suhuaiqiang_janlay/article/details/51194984),
 - 写的时候移动end索引,读的时候移动begin索引,保证了在单进程读和单进程写的时候是线
-  程安全的，多进程读躲进成写时利用信号量集一个读信号和写信号实现进程见共享内存读写锁来保证多进程安全。
+  程安全的，多进程读多进成写时利用信号量集(一个读信号和写信号)实现进程间的共享内存读写锁来保证多进程安全。
 # 测试用例
 - [源码main.cpp](https://github.com/DGuco/shmqueue/blob/master/main.cpp)
 - 测试结果：
