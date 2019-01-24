@@ -127,8 +127,8 @@ public:
     {
     public:
         //除了最后一个变量其他都用long long类型避免，防止不同的进程或者线程同时访问不同的变量产生false sharing
-        long long m_iBegin;
-        long long m_iEnd;
+        volatile long long m_iBegin;
+        volatile long long m_iEnd;
         long long m_iKey;
         long long m_iSize;
         eQueueModel m_eQueueModule;
