@@ -10,44 +10,44 @@
 # 测试用例
 - 源码见main.cpp
 - 测试结果：
-      ===============================================================
-      Try to malloc share memory of 10240 bytes...
-      Successfully alloced share memory block, (key=12345), id = 11272200, size = 10240
-      Mem trunk address 0x0x7ffff7ff4000,key 11272200 , size 10240, begin 0, end 0, queue module 0
-      Write  SingleRWTest thread 1 ,write count 1000000
-      Read SingleRWTest ,thread 1 ,read count 1000000
-      Touch to share memory key = 12345...
-      Now remove the exist share memory 11272200
-      Remove shared memory(id = 11272200, key = 12345) succeed.
-      =======================SingleRWTest=============================
-      SingleRWTest cost time 3046 ms
-      Read read_count 1000000
-      Write write_count 1000000
-      SingleRWTest ok 0
-      ===============================================================
-      Try to malloc share memory of 10240 bytes...
-      Successfully alloced share memory block, (key=1234), id = 11304977, size = 10240
-      Mem trunk address 0x0x7ffff7ff1000,key 11304977 , size 10240, begin 0, end 0, queue module 3
-      ===============================================================
-      Write  MulRWTest thread 4 ,write count 100000
-      Write  MulRWTest thread 1 ,write count 100000
-      Write  MulRWTest thread 0 ,write count 100000
-      Write  MulRWTest thread 3 ,write count 100000
-      Write  MulRWTest thread 2 ,write count 100000
-      Read MulRWTest ,thread 3 ,read count 99981
-      Read MulRWTest ,thread 1 ,read count 104765
-      Read MulRWTest ,thread 2 ,read count 104513
-      Read MulRWTest ,thread 4 ,read count 95279
-      Read MulRWTest ,thread 0 ,read count 95467
-      Touch to share memory key = 1234...
-      Now remove the exist share memory 11304977
-      Remove shared memory(id = 11304977, key = 1234) succeed.
-      =======================MulRWTest===============================
-      MulRWTest cost time 24639 ms
-      Read read_count 500000
-      Write write_count 500000
-      MulRWTest ok
-      为了操作方便，读写操作用线程代替进程
+      ===============================================================<br>
+      Try to malloc share memory of 10240 bytes...<br>
+      Successfully alloced share memory block, (key=12345), id = 11272200, size = 10240<br>
+      Mem trunk address 0x0x7ffff7ff4000,key 11272200 , size 10240, begin 0, end 0, queue module 0<br>
+      Write  SingleRWTest thread 1 ,write count 1000000<br>
+      Read SingleRWTest ,thread 1 ,read count 1000000<br>
+      Touch to share memory key = 12345...<br>
+      Now remove the exist share memory 11272200<br>
+      Remove shared memory(id = 11272200, key = 12345) succeed.<br>
+      =======================SingleRWTest=============================<br>
+      SingleRWTest cost time 3046 ms<br>
+      Read read_count 1000000<br>
+      Write write_count 1000000<br>
+      SingleRWTest ok 0<br>
+      ===============================================================<br>
+      Try to malloc share memory of 10240 bytes...<br>
+      Successfully alloced share memory block, (key=1234), id = 11304977, size = 10240<br>
+      Mem trunk address 0x0x7ffff7ff1000,key 11304977 , size 10240, begin 0, end 0, queue module 3<br>
+      ===============================================================<br>
+      Write  MulRWTest thread 4 ,write count 100000<br>
+      Write  MulRWTest thread 1 ,write count 100000<br>
+      Write  MulRWTest thread 0 ,write count 100000<br>
+      Write  MulRWTest thread 3 ,write count 100000<br>
+      Write  MulRWTest thread 2 ,write count 100000<br>
+      Read MulRWTest ,thread 3 ,read count 99981<br>
+      Read MulRWTest ,thread 1 ,read count 104765<br>
+      Read MulRWTest ,thread 2 ,read count 104513<br>
+      Read MulRWTest ,thread 4 ,read count 95279<br>
+      Read MulRWTest ,thread 0 ,read count 95467<br>
+      Touch to share memory key = 1234...<br>
+      Now remove the exist share memory 11304977<br>
+      Remove shared memory(id = 11304977, key = 1234) succeed.<br>
+      =======================MulRWTest===============================<br>
+      MulRWTest cost time 24639 ms<br>
+      Read read_count 500000<br>
+      Write write_count 500000<br>
+      MulRWTest ok<br>
+- 为了操作方便，这里的读写操作用全部用线程代替进程，从目的上来说效果是一样的
 # 注意事项
 - 优先考虑单进程读单进程写，无锁读写效率更快，多进程读在一定程度上会降低收发效率
 - 如果数据来自网络，注意字节序列,大小端的问题
