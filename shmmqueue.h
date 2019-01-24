@@ -24,7 +24,7 @@ namespace shmmqueue
 {
 typedef unsigned char BYTE;
 
-enum class eQueueModule: unsigned char
+enum class eQueueModel: unsigned char
 {
     ONE_READ_ONE_WRITE,   //一个进程读消息一个进程写消息
     ONE_READ_MUL_WRITE,   //一个进程读消息多个进程写消息
@@ -51,7 +51,7 @@ class CACHELINE_ALIGN CMessageQueue
 {
 private:
     CMessageQueue();
-    CMessageQueue(eQueueModule module, key_t shmid, size_t size);
+    CMessageQueue(eQueueModel module, key_t shmid, size_t size);
 public:
     ~CMessageQueue();
     CMessageQueue(const CMessageQueue &) = delete;
@@ -121,7 +121,7 @@ public:
     //创建CMssageQueue对象
     static CMessageQueue *CreateInstance(key_t shmkey,
                                          size_t queuesize,
-                                         eQueueModule queueModule = eQueueModule::MUL_READ_MUL_WRITE);
+                                         eQueueModel queueModule = eQueueModel::MUL_READ_MUL_WRITE);
 public:
     struct CACHELINE_ALIGN stMemTrunk
     {
@@ -131,7 +131,7 @@ public:
         long long m_iEnd;
         long long m_iKey;
         long long m_iSize;
-        eQueueModule m_eQueueModule;
+        eQueueModel m_eQueueModule;
         stMemTrunk()
         {}
         ~stMemTrunk()

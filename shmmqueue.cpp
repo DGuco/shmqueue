@@ -21,7 +21,7 @@ CMessageQueue::CMessageQueue()
     InitLock();
 }
 
-CMessageQueue::CMessageQueue(eQueueModule module, key_t shmid, size_t size)
+CMessageQueue::CMessageQueue(eQueueModel module, key_t shmid, size_t size)
 {
     m_stMemTrunk = new stMemTrunk();
     m_stMemTrunk->m_iBegin = 0;
@@ -49,7 +49,6 @@ int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
     if (!message || length <= 0) {
         return (int) eQueueErrorCode::QUEUE_PARAM_ERROR;
     }
-
 
     std::shared_ptr<CSafeShmWlock> lock = nullptr;
     //修改共享内存写锁
@@ -359,14 +358,14 @@ void CMessageQueue::InitLock()
 
 bool CMessageQueue::IsReadLock()
 {
-    return (m_stMemTrunk->m_eQueueModule == eQueueModule::MUL_READ_MUL_WRITE ||
-        m_stMemTrunk->m_eQueueModule == eQueueModule::MUL_READ_ONE_WRITE);
+    return (m_stMemTrunk->m_eQueueModule == eQueueModel::MUL_READ_MUL_WRITE ||
+        m_stMemTrunk->m_eQueueModule == eQueueModel::MUL_READ_ONE_WRITE);
 }
 
 bool CMessageQueue::IsWriteLock()
 {
-    return (m_stMemTrunk->m_eQueueModule == eQueueModule::MUL_READ_MUL_WRITE ||
-        m_stMemTrunk->m_eQueueModule == eQueueModule::ONE_READ_MUL_WRITE);
+    return (m_stMemTrunk->m_eQueueModule == eQueueModel::MUL_READ_MUL_WRITE ||
+        m_stMemTrunk->m_eQueueModule == eQueueModel::ONE_READ_MUL_WRITE);
 }
 
 /**
@@ -475,7 +474,7 @@ int CMessageQueue::DestroyShareMem(key_t iKey)
 
 CMessageQueue *CMessageQueue::CreateInstance(key_t shmkey,
                                              size_t queuesize,
-                                             eQueueModule queueModule)
+                                             eQueueModel queueModule)
 {
     enShmModule shmModule;
     int shmId = 0;
