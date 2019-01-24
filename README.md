@@ -2,8 +2,8 @@
 - 基于c++内存池,共享内存和信号量实现高速的进程间通信队列,支持单进程读单进程写，单进程多进程写,多进程读单进程写,多进程读多进程写
 # 实现原理
 - 把消息队列对象生成在实现分配好的共享内存区中（共享内存去的大小远远大于消息队列管理对象messagequeue），对象中记录者共享内存去
-  剩余内存的数据情况，消息内存区为一个环形内存区。如下图：
-  ![原理图](https://github.com/DGuco/shmqueue/raw/master/ringbuff.png)
+  剩余内存的数据情况，消息内存区为一个环形内存区。如下图：<br>
+  ![原理图](https://github.com/DGuco/shmqueue/raw/master/ringbuff.png)<br>
   [详细介绍](http://blog.csdn.net/suhuaiqiang_janlay/article/details/51194984),
 - 写的时候移动end索引,读的时候移动begin索引,保证了在单进程读和单进程写的时候是线
   程安全的，多进程读躲进成写时利用信号量集一个读信号和写信号实现进程见共享内存读写锁来保证多进程安全。
