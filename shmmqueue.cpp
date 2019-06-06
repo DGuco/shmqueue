@@ -52,7 +52,7 @@ int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
 
     std::shared_ptr<CSafeShmWlock> lock = nullptr;
     //修改共享内存写锁
-    if (IsWriteLock()) {
+    if (IsWriteLock() && m_pWriteLock) {
         lock.reset(new CSafeShmWlock(m_pWriteLock));
     }
 
@@ -110,7 +110,7 @@ int CMessageQueue::GetMessage(BYTE *pOutCode)
 
     std::shared_ptr<CSafeShmWlock> lock = nullptr;
     //修改共享内存写锁
-    if (IsReadLock()) {
+    if (IsReadLock() && m_pReadLock) {
         lock.reset(new CSafeShmWlock(m_pReadLock));
     }
 
@@ -183,7 +183,7 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
 
     std::shared_ptr<CSafeShmRlock> lock = nullptr;
     //修改共享内存写锁
-    if (IsReadLock()) {
+    if (IsReadLock() && m_pReadLock) {
         lock.reset(new CSafeShmRlock(m_pReadLock));
     }
 
@@ -248,7 +248,7 @@ int CMessageQueue::DeleteHeadMessage()
 {
     std::shared_ptr<CSafeShmWlock> lock = nullptr;
     //修改共享内存写锁
-    if (IsReadLock()) {
+    if (IsReadLock() && m_pReadLock)  {
         lock.reset(new CSafeShmWlock(m_pReadLock));
     }
 
