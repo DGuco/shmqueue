@@ -27,7 +27,7 @@ CMessageQueue::CMessageQueue(eQueueModel module, key_t shmid, size_t size)
     m_stMemTrunk->m_iBegin = 0;
     m_stMemTrunk->m_iEnd = 0;
     m_stMemTrunk->m_iKey = shmid;
-    m_stMemTrunk->m_iSize = (int) size;
+    m_stMemTrunk->m_iSize = (unsigned int)size;
     m_stMemTrunk->m_eQueueModule = module;
     InitLock();
 }
@@ -74,7 +74,7 @@ int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
     BYTE *pTempSrc = (BYTE *) (&usInLength);
 
     //写入的时候我们在数据头插上数据的长度，方便准确取数据
-    long long tmpEnd = m_stMemTrunk->m_iEnd;
+    unsigned int tmpEnd = m_stMemTrunk->m_iEnd;
     for (MESS_SIZE_TYPE i = 0; i < sizeof(usInLength); i++) {
         pTempDst[tmpEnd] = pTempSrc[i];  // 拷贝 Code 的长度
         tmpEnd = (tmpEnd + 1) % GetQueueLength();  // % 用于防止 Code 结尾的 idx 超出 codequeue
@@ -203,7 +203,7 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
     BYTE *pTempDst = (BYTE *) &usOutLength;   // 数据拷贝的目的地址
     BYTE *pTempSrc = &pbyCodeBuf[0];  // 数据拷贝的源地址
     //取出数据的长度
-    long long tmpBegin = m_stMemTrunk->m_iBegin;
+    unsigned int tmpBegin = m_stMemTrunk->m_iBegin;
     for (MESS_SIZE_TYPE i = 0; i < sizeof(short); i++) {
         pTempDst[i] = pTempSrc[tmpBegin];
         tmpBegin = (tmpBegin + 1) % GetQueueLength();
@@ -287,7 +287,7 @@ int CMessageQueue::DeleteHeadMessage()
 
 void CMessageQueue::PrintfTrunk()
 {
-    printf("Mem trunk address 0x%p,key %lli , size %lli, begin %lli, end %lli, queue module %d \n",
+    printf("Mem trunk address 0x%p,key %d , size %d, begin %d, end %d, queue module %d \n",
            m_stMemTrunk,
            m_stMemTrunk->m_iKey,
            m_stMemTrunk->m_iSize,
@@ -317,14 +317,14 @@ BYTE *CMessageQueue::MessageEndAddr()
 }
 
 //获取空闲区大小
-int CMessageQueue::GetFreeSize()
+unsigned int CMessageQueue::GetFreeSize()
 {
     //长度应该减去预留部分长度8，保证首尾不会相接
     return GetQueueLength() - GetDataSize() - EXTRA_BYTE;
 }
 
 //获取数据长度
-int CMessageQueue::GetDataSize()
+unsigned int CMessageQueue::GetDataSize()
 {
     //第一次写数据前
     if (m_stMemTrunk->m_iBegin == m_stMemTrunk->m_iEnd) {
@@ -332,17 +332,17 @@ int CMessageQueue::GetDataSize()
     }
         //数据在两头
     else if (m_stMemTrunk->m_iBegin > m_stMemTrunk->m_iEnd) {
-        return (int) (m_stMemTrunk->m_iEnd + (QueueEndAddr() - MessageBeginAddr()));
+        return  (unsigned int)(m_stMemTrunk->m_iEnd + (QueueEndAddr() - MessageBeginAddr()));
     }
     else   //数据在中间
     {
-        return (int) (m_stMemTrunk->m_iEnd - m_stMemTrunk->m_iBegin);
+        return m_stMemTrunk->m_iEnd - m_stMemTrunk->m_iBegin;
     }
 }
 
-int CMessageQueue::GetQueueLength()
+unsigned int CMessageQueue::GetQueueLength()
 {
-    return (int) (m_stMemTrunk->m_iSize - sizeof(stMemTrunk));
+    return (unsigned int) (m_stMemTrunk->m_iSize - sizeof(stMemTrunk));
 }
 
 void CMessageQueue::InitLock()

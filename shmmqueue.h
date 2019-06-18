@@ -102,11 +102,11 @@ private:
     //获取消息trunk m_iEnd在内存中的开始位置
     BYTE *MessageEndAddr();
     //获取空闲区大小
-    int GetFreeSize();
+    unsigned int GetFreeSize();
     //获取数据长度
-    int GetDataSize();
+    unsigned int GetDataSize();
     //获取存储数据的内存取长度（空闲的和占用的）
-    int GetQueueLength();
+    unsigned int GetQueueLength();
     //初始化lock
     void InitLock();
     //是否要对读端上锁
@@ -126,11 +126,19 @@ public:
     struct CACHELINE_ALIGN stMemTrunk
     {
     public:
-        //除了最后一个变量其他都用long long类型避免，防止不同的进程或者线程同时访问不同的变量产生false sharing
-        volatile long long m_iBegin;
-        volatile long long m_iEnd;
-        long long m_iKey;
-        long long m_iSize;
+        /**
+         * 1) 这里读写索引用int类型,cpu可以保证对double和long除外的基本类型的读写是原子的,保证一个线程不会读到另外一个线程写到一半的值
+         * 2) 在变量之间插入一个64位(cache line的长度)的变量(没有实际的计算意义),但是可以保证两个变量不会同时在一个cache line里,防止不同的
+         *    进程或者线程同时访问在一个cache line里不同的变量产生false sharing,
+         */
+        unsigned int m_iBegin;
+        long long __1;
+        unsigned int m_iEnd;
+        long long __2;
+        int m_iKey;
+        long long __3;
+        unsigned int m_iSize;
+        long long __4;
         eQueueModel m_eQueueModule;
         stMemTrunk()
         {}
