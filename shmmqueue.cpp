@@ -97,6 +97,7 @@ int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
             memcpy((void *) &pbyCodeBuf[tmpEnd], (const void *) &message[0], (size_t) length);
         }
     }
+
     //数据写入完成修改m_iEnd，保证读端不会读到写入一半的数据
     m_stMemTrunk->m_iEnd = (tmpEnd + length) % GetQueueLength();
     return (int) eQueueErrorCode::QUEUE_OK;
