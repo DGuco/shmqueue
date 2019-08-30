@@ -49,8 +49,7 @@ void read_func(CMessageQueue *writeQueue, int threadId, const char *mes)
             int i = atoi((const char *) data);
             if (i != read_i && i != -1) {
                 printf("------------Read sequence error,i = %d,read = %s ------------\n", read_i, data);
-                writeQueue->PrintfTrunk();
-                writeQueue->DestroyShareMem(SHAR_ID_2);
+                writeQueue->PrintTrunk();
                 exit(-1);
             }
             if (i == -1) {
@@ -61,8 +60,7 @@ void read_func(CMessageQueue *writeQueue, int threadId, const char *mes)
         else {
             if (len != (int) eQueueErrorCode::QUEUE_NO_MESSAGE) {
                 printf("Read failed ret = %d\n", len);
-                writeQueue->PrintfTrunk();
-                writeQueue->DestroyShareMem(SHAR_ID_2);
+                writeQueue->PrintTrunk();
                 exit(-1);
             }
         }
@@ -85,8 +83,7 @@ void write_func(CMessageQueue *writeQueue, int threadId, const char *mes)
         else {
             if (iRet != (int) eQueueErrorCode::QUEUE_NO_SPACE) {
                 printf("Write failed data = %d,ret = %d\n", write_i, iRet);
-                writeQueue->PrintfTrunk();
-                writeQueue->DestroyShareMem(SHAR_ID_2);
+                writeQueue->PrintTrunk();
                 exit(-1);
             }
         }
@@ -120,8 +117,7 @@ void mul_read_func(CMessageQueue *writeQueue, int threadId, const char *mes)
             }
             if (len != (int) eQueueErrorCode::QUEUE_NO_MESSAGE) {
                 printf("Read failed ret = %d\n", len);
-                writeQueue->PrintfTrunk();
-                writeQueue->DestroyShareMem(SHAR_ID_1);
+                writeQueue->PrintTrunk();
                 exit(-1);
             }
         }
@@ -149,8 +145,7 @@ void mul_write_func(CMessageQueue *writeQueue, int threadId, const char *mes)
         else {
             if (iRet != (int) eQueueErrorCode::QUEUE_NO_SPACE) {
                 printf("Write failed data = %d,ret = %d\n", write_i, iRet);
-                writeQueue->PrintfTrunk();
-                writeQueue->DestroyShareMem(SHAR_ID_1);
+                writeQueue->PrintTrunk();
                 exit(-1);
             }
         }
@@ -167,7 +162,6 @@ void SingleRWTest()
     read_thread.join();
     write_thread.join();
     long end = getCurrentTime();
-    messQueue->DestroyShareMem(SHAR_ID_2);
     printf("=======================SingleRWTest=============================\n");
     printf("SingleRWTest cost time %d ms\n", (int) (end - begin));
     printf("Read read_count %d \n", read_i);
@@ -178,6 +172,8 @@ void SingleRWTest()
     else {
         printf("SingleRWTest failed %d \n");
     }
+    delete  messQueue;
+    messQueue = nullptr;
 }
 
 void MulRWTest()
@@ -205,7 +201,6 @@ void MulRWTest()
         thread.join();
     }
     long end = getCurrentTime();
-    messQueue->DestroyShareMem(SHAR_ID_1);
     printf("=======================MulRWTest===============================\n");
     printf("MulRWTest cost time %d ms\n", (int) (end - begin));
     printf("Read read_count %d \n", read_count.load());
@@ -216,6 +211,8 @@ void MulRWTest()
     else {
         printf("MulRWTest failed\n");
     }
+    delete  messQueue;
+    messQueue = nullptr;
 }
 
 int main(int argc, const char *argv[])

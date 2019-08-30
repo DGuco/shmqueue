@@ -12,18 +12,24 @@
 #include "shm_rwlock.h"
 
 #define EXTRA_BYTE 8
-#define MESS_SIZE_TYPE unsigned short
+#define MESS_SIZE_TYPE size_t
 
 
 #define CACHELINE_SIZE 64
 //修改字对齐规则，避免false sharing
 #define CACHELINE_ALIGN  __attribute__((aligned(CACHELINE_SIZE)))
 
-////内存屏障
-//#define __READ_BARRIER__ \
-//    __asm__ __volatile__("lfence":::"memory");
-//#define __WRITE_BARRIER__ \
-//    __asm__ __volatile__("sfence":::"memory");
+#define SHM_MIN(a,b) a < b ? a : b
+
+//内存屏障
+#define __MEM_BARRIER \
+    __asm__ __volatile__("mfence":::"memory")
+//内存读屏障
+#define __READ_BARRIER__ \
+    __asm__ __volatile__("lfence":::"memory")
+//内存写屏障
+#define __WRITE_BARRIER__ \
+    __asm__ __volatile__("sfence":::"memory")
 
 namespace shmmqueue
 {
@@ -55,8 +61,16 @@ enum class enShmModule: unsigned char
 class CACHELINE_ALIGN CMessageQueue
 {
 private:
-    CMessageQueue();
-    CMessageQueue(eQueueModel module, key_t shmid, size_t size);
+    CMessageQueue(BYTE *pCurrAddr);
+    /**
+     *
+     * @param module
+     * @param shmKey
+     * @param shmId
+     * @param size 如果传入的size != 2^n,size 会初始化为>size的最小的2^n的数
+     * 例如　2^n-1 < size < 2^n,则MessageQueue被初始化为2^n
+     */
+    CMessageQueue(BYTE *pCurrAddr,eQueueModel module, key_t shmKey, int shmId,size_t size);
 public:
     ~CMessageQueue();
     CMessageQueue(const CMessageQueue &) = delete;
@@ -96,16 +110,12 @@ public:
      * 打印队列信息
      * 这里没有加锁打印仅供参考，不一定是正确的
      **/
-    void PrintfTrunk();
+    void PrintTrunk();
 private:
-    //获取消息queue在内存中的开始位置
-    BYTE *QueueBeginAddr();
     //获取消息queue在内存中的结束位置
     BYTE *QueueEndAddr();
-    //获取消息trunk m_iBegin在内存中的开始位置
+    //获取消息在内存中的开始位置
     BYTE *MessageBeginAddr();
-    //获取消息trunk m_iEnd在内存中的开始位置
-    BYTE *MessageEndAddr();
     //获取空闲区大小
     unsigned int GetFreeSize();
     //获取数据长度
@@ -120,10 +130,23 @@ private:
     bool IsWriteLock();
 public:
     //创建共享内存
-    static BYTE *CreateShareMem(key_t iKey, long vSize, enShmModule &shmModule, int &shmId);
+    static BYTE *CreateShareMem(key_t iKey, long vSize, enShmModule &shmModule,int& shmId);
     //销毁共享内存
-    static int DestroyShareMem(key_t iKey);
+    static int DestroyShareMem(const void *shmaddr,key_t iKey);
+    //是否是2的次方
+    static bool IsPowerOfTwo(size_t size);
+    //求最接近的最大2的指数次幂
+    static int Fls(size_t size);
+    static size_t RoundupPowofTwo(size_t size);
     //创建CMssageQueue对象
+    /**
+     *
+     * @param shmkey
+     * @param queuesize 如果传入的size != 2^n,size 会初始化为>size的最小的2^n的数,例如2^n-1 < size < 2^n,
+     *                  则MessageQueue被初始化为2^n
+     * @param queueModule
+     * @return
+     */
     static CMessageQueue *CreateInstance(key_t shmkey,
                                          size_t queuesize,
                                          eQueueModel queueModule = eQueueModel::MUL_READ_MUL_WRITE);
@@ -137,44 +160,27 @@ public:
          * 2) 在变量之间插入一个64位(cache line的长度)的变量(没有实际的计算意义),但是可以保证两个变量不会同时在一个cache line里,防止不同的
          *    进程或者线程同时访问在一个cache line里不同的变量产生false sharing,
          */
-        unsigned int m_iBegin;
+        volatile unsigned int m_iBegin;
         long long __1;
-        unsigned int m_iEnd;
+        volatile unsigned int m_iEnd;
         long long __2;
-        int m_iKey;
+        int m_iShmKey;
         long long __3;
         unsigned int m_iSize;
         long long __4;
+        int m_iShmId;
+        long long __5;
         eQueueModel m_eQueueModule;
         stMemTrunk()
         {}
         ~stMemTrunk()
         {}
-
-        void *operator new(size_t nSize)
-        {
-            BYTE *pTemp;
-
-            if (!CMessageQueue::m_pCurrAddr) {
-                return (void *) NULL;
-            }
-            else {
-                pTemp = CMessageQueue::m_pCurrAddr;
-            }
-            return (void *) pTemp;
-        }
-
-        void operator delete(void *pBase)
-        {
-
-        }
     };
 private:
     stMemTrunk *m_stMemTrunk;
     CShmRWlock *m_pReadLock;  //m_iBegin 锁
-    CShmRWlock *m_pWriteLock; //m_iEnd 锁
-public:
-    static BYTE *m_pCurrAddr;
+    CShmRWlock *m_pWriteLock; //m_iEnd
+    BYTE *m_pQueueAddr;
 };
 }
 
