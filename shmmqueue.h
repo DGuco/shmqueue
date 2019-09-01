@@ -112,10 +112,6 @@ public:
      **/
     void PrintTrunk();
 private:
-    //获取消息queue在内存中的结束位置
-    BYTE *QueueEndAddr();
-    //获取消息在内存中的开始位置
-    BYTE *MessageBeginAddr();
     //获取空闲区大小
     unsigned int GetFreeSize();
     //获取数据长度
@@ -125,9 +121,9 @@ private:
     //初始化lock
     void InitLock();
     //是否要对读端上锁
-    bool IsReadLock();
+    bool IsBeginLock();
     //是否要对写端上锁
-    bool IsWriteLock();
+    bool IsEndLock();
 public:
     //创建共享内存
     static BYTE *CreateShareMem(key_t iKey, long vSize, enShmModule &shmModule,int& shmId);
@@ -178,9 +174,10 @@ public:
     };
 private:
     stMemTrunk *m_stMemTrunk;
-    CShmRWlock *m_pReadLock;  //m_iBegin 锁
-    CShmRWlock *m_pWriteLock; //m_iEnd
+    CShmRWlock *m_pBeginLock;  //m_iBegin 锁
+    CShmRWlock *m_pEndLock; //m_iEnd
     BYTE *m_pQueueAddr;
+    void * m_pShm;
 };
 }
 

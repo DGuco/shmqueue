@@ -16,6 +16,7 @@ namespace shmmqueue
 {
 CMessageQueue::CMessageQueue(BYTE *pCurrAddr)
 {
+    m_pShm = (void*) pCurrAddr;
     m_pQueueAddr = pCurrAddr;
     m_stMemTrunk = new (m_pQueueAddr) stMemTrunk();
     m_pQueueAddr += sizeof(stMemTrunk);
@@ -24,6 +25,7 @@ CMessageQueue::CMessageQueue(BYTE *pCurrAddr)
 
 CMessageQueue::CMessageQueue(BYTE *pCurrAddr, eQueueModel module, key_t shmKey, int shmId, size_t size)
 {
+    m_pShm = (void*) pCurrAddr;
     m_pQueueAddr = pCurrAddr;
     m_stMemTrunk = new (m_pQueueAddr) stMemTrunk();
     m_pQueueAddr += sizeof(stMemTrunk);
@@ -39,16 +41,16 @@ CMessageQueue::CMessageQueue(BYTE *pCurrAddr, eQueueModel module, key_t shmKey, 
 CMessageQueue::~CMessageQueue()
 {
     if(m_stMemTrunk) {
-        DestroyShareMem((void*)(&m_pQueueAddr[-sizeof(m_stMemTrunk)]),m_stMemTrunk->m_iShmKey);
+        DestroyShareMem(m_pShm,m_stMemTrunk->m_iShmKey);
         m_stMemTrunk->~stMemTrunk();
     }
-    if (m_pReadLock) {
-        delete m_pReadLock;
-        m_pReadLock = nullptr;
+    if (m_pBeginLock) {
+        delete m_pBeginLock;
+        m_pBeginLock = nullptr;
     }
-    if (m_pWriteLock) {
-        delete m_pWriteLock;
-        m_pWriteLock = nullptr;
+    if (m_pEndLock) {
+        delete m_pEndLock;
+        m_pEndLock = nullptr;
     }
 }
 
@@ -60,8 +62,8 @@ int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
 
     std::shared_ptr<CSafeShmWlock> lock = nullptr;
     //修改共享内存写锁
-    if (IsWriteLock() && m_pWriteLock) {
-        lock.reset(new CSafeShmWlock(m_pWriteLock));
+    if (IsEndLock() && m_pEndLock) {
+        lock.reset(new CSafeShmWlock(m_pEndLock));
     }
 
     // 首先判断是否队列已满
@@ -114,8 +116,8 @@ int CMessageQueue::GetMessage(BYTE *pOutCode)
 
     std::shared_ptr<CSafeShmWlock> lock = nullptr;
     //修改共享内存写锁
-    if (IsReadLock() && m_pReadLock) {
-        lock.reset(new CSafeShmWlock(m_pReadLock));
+    if (IsBeginLock() && m_pBeginLock) {
+        lock.reset(new CSafeShmWlock(m_pBeginLock));
     }
 
     int nTempMaxLength = GetDataSize();
@@ -176,10 +178,10 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
         return (int) eQueueErrorCode::QUEUE_PARAM_ERROR;
     }
 
-    std::shared_ptr<CSafeShmWlock> lock = nullptr;
+    std::shared_ptr<CSafeShmRlock> lock = nullptr;
     //修改共享内存写锁
-    if (IsReadLock() && m_pReadLock) {
-        lock.reset(new CSafeShmWlock(m_pReadLock));
+    if (IsBeginLock() && m_pBeginLock) {
+        lock.reset(new CSafeShmRlock(m_pBeginLock));
     }
 
     int nTempMaxLength = GetDataSize();
@@ -192,7 +194,6 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
     if (nTempMaxLength <= (int) sizeof(MESS_SIZE_TYPE)) {
         printf("[%s:%d] ReadHeadMessage data len illegal,nTempMaxLength %d \n", __FILE__, __LINE__, nTempMaxLength);
         PrintTrunk();
-        m_stMemTrunk->m_iBegin = m_stMemTrunk->m_iEnd;
         return (int) eQueueErrorCode::QUEUE_DATA_SEQUENCE_ERROR;
     }
 
@@ -211,7 +212,6 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
         printf("[%s:%d] ReadHeadMessage usOutLength illegal,usOutLength: %d,nTempMaxLength %d \n",
                __FILE__, __LINE__, usOutLength, nTempMaxLength);
         PrintTrunk();
-        m_stMemTrunk->m_iBegin = m_stMemTrunk->m_iEnd;
         return (int) eQueueErrorCode::QUEUE_DATA_SEQUENCE_ERROR;
     }
 
@@ -236,8 +236,8 @@ int CMessageQueue::DeleteHeadMessage()
 {
     std::shared_ptr<CSafeShmWlock> lock = nullptr;
     //修改共享内存写锁
-    if (IsReadLock() && m_pReadLock) {
-        lock.reset(new CSafeShmWlock(m_pReadLock));
+    if (IsBeginLock() && m_pBeginLock) {
+        lock.reset(new CSafeShmWlock(m_pBeginLock));
     }
 
     int nTempMaxLength = GetDataSize();
@@ -290,16 +290,6 @@ void CMessageQueue::PrintTrunk()
            m_stMemTrunk->m_eQueueModule);
 }
 
-BYTE *CMessageQueue::QueueEndAddr()
-{
-    return m_pQueueAddr + m_stMemTrunk->m_iSize;
-}
-
-BYTE *CMessageQueue::MessageBeginAddr()
-{
-    return m_pQueueAddr + m_stMemTrunk->m_iBegin;
-}
-
 //获取空闲区大小
 unsigned int CMessageQueue::GetFreeSize()
 {
@@ -332,22 +322,22 @@ unsigned int CMessageQueue::GetQueueLength()
 
 void CMessageQueue::InitLock()
 {
-    if (IsReadLock()) {
-        m_pReadLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 1));
+    if (IsBeginLock()) {
+        m_pBeginLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey));
     }
 
-    if (IsWriteLock()) {
-        m_pWriteLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 2));
+    if (IsEndLock()) {
+        m_pEndLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmId));
     }
 }
 
-bool CMessageQueue::IsReadLock()
+bool CMessageQueue::IsBeginLock()
 {
     return (m_stMemTrunk->m_eQueueModule == eQueueModel::MUL_READ_MUL_WRITE ||
         m_stMemTrunk->m_eQueueModule == eQueueModel::MUL_READ_ONE_WRITE);
 }
 
-bool CMessageQueue::IsWriteLock()
+bool CMessageQueue::IsEndLock()
 {
     return (m_stMemTrunk->m_eQueueModule == eQueueModel::MUL_READ_MUL_WRITE ||
         m_stMemTrunk->m_eQueueModule == eQueueModel::ONE_READ_MUL_WRITE);
@@ -364,7 +354,7 @@ BYTE *CMessageQueue::CreateShareMem(key_t iKey, long vSize, enShmModule &shmModu
     size_t iTempShmSize;
 
     if (iKey < 0) {
-        printf("[%s:%d] CreateShareMem failed. errno:%s \n", __FILE__, __LINE__, strerror(errno));
+        printf("[%s:%d] CreateShareMem failed. [key %d]errno:%s \n", __FILE__, __LINE__, iKey,strerror(errno));
         exit(-1);
     }
 
@@ -376,50 +366,50 @@ BYTE *CMessageQueue::CreateShareMem(key_t iKey, long vSize, enShmModule &shmModu
     shmId = shmget(iKey, iTempShmSize, IPC_CREAT | IPC_EXCL | 0666);
     if (shmId < 0) {
         if (errno != EEXIST) {
-            printf("[%s:%d] Alloc share memory failed, iKey:%d , size:%d , error:%s \n",
+            printf("[%s:%d] Alloc share memory failed, [iKey:%d] , size:%d , error:%s \n",
                    __FILE__, __LINE__, iKey, iTempShmSize, strerror(errno));
             exit(-1);
         }
 
-        printf("Same shm seg (key= %d ) exist, now try to attach it... \n", iKey);
+        printf("Same shm seg [key= %d] exist, now try to attach it... \n", iKey);
 
         shmId = shmget(iKey, iTempShmSize, 0666);
         if (shmId < 0) {
-            printf("Attach to share memory %d  failed, %s . Now try to touch it \n", shmId, strerror(errno));
+            printf("Attach to share memory [key= %d,shmId %d] failed, %s . Now try to touch it \n",iKey, shmId, strerror(errno));
             shmId = shmget(iKey, 0, 0666);
             if (shmId < 0) {
-                printf("[%s:%d] Fatel error, touch to shm failed, %s.\n", __FILE__, __LINE__, strerror(errno));
+                printf("[%s:%d] Fatel error, touch to shm [key= %d,shmId %d] failed, %s.\n", __FILE__, __LINE__, iKey, shmId,strerror(errno));
                 exit(-1);
             }
             else {
-                printf("First remove the exist share memory %d \n", shmId);
+                printf("First remove the exist share memory [key= %d,shmId %d] \n", iKey,shmId);
                 if (shmctl(shmId, IPC_RMID, NULL)) {
-                    printf("[%s:%d] Remove share memory failed, %s \n", __FILE__, __LINE__, strerror(errno));
+                    printf("[%s:%d] Remove share memory [key= %d,shmId %d] failed, %s \n", __FILE__, __LINE__, iKey,shmId,strerror(errno));
                     exit(-1);
                 }
                 shmId = shmget(iKey, iTempShmSize, IPC_CREAT | IPC_EXCL | 0666);
                 if (shmId < 0) {
-                    printf("[%s:%d] Fatal error, alloc share memory failed, %s \n",
-                           __FILE__, __LINE__, strerror(errno));
+                    printf("[%s:%d] Fatal error, alloc share memory [key= %d,shmId %d] failed, %s \n",
+                           __FILE__, __LINE__, iKey,shmId,strerror(errno));
                     exit(-1);
                 }
             }
         }
         else {
             shmModule = enShmModule::SHM_RESUME;
-            printf("Attach to share memory succeed.\n");
+            printf("Attach to share memory [key= %d,shmId %d] succeed.\n",iKey,shmId);
         }
     }
     else {
         shmModule = enShmModule::SHM_INIT;
     }
 
-    printf("Successfully alloced share memory block, (key=%d), id = %d, size = %d \n", iKey, shmId, iTempShmSize);
+    printf("Successfully alloced share memory block,[key= %d,shmId %d] size = %d \n", iKey, shmId, iTempShmSize);
     BYTE *tpShm = (BYTE *) shmat(shmId, NULL, 0);
 
     if ((void *) -1 == tpShm) {
-        printf("[%s:%d] create share memory failed, shmat failed, iShmId = %d, error = %s. \n",
-               __FILE__, __LINE__, shmId, strerror(errno));
+        printf("[%s:%d] create share memory failed, shmat failed, [key= %d,shmId %d], error = %s. \n",
+               __FILE__, __LINE__,iKey, shmId, strerror(errno));
         exit(0);
     }
 
@@ -429,8 +419,8 @@ BYTE *CMessageQueue::CreateShareMem(key_t iKey, long vSize, enShmModule &shmModu
 /************************************************
   函数名          : DestroyShareMem
   功能描述        : 销毁共享内存块
-  参数			 :  iKey：共享内存块唯一标识key
-  返回值         ： 成功0 错误：错误码
+  参数			:  iKey：共享内存块唯一标识key
+  返回值         : 成功0 错误：错误码
 ************************************************/
 int CMessageQueue::DestroyShareMem(const void *shmaddr,key_t iKey)
 {
@@ -440,19 +430,26 @@ int CMessageQueue::DestroyShareMem(const void *shmaddr,key_t iKey)
         printf("[%s:%d] Error in ftok, %s. \n", __FILE__, __LINE__, strerror(errno));
         return -1;
     }
-    printf("Touch to share memory key = %d... \n", iKey);
+    printf("Touch to share memory [key = %d]... \n", iKey);
     iShmID = shmget(iKey, 0, 0666);
     if (iShmID < 0) {
-        printf("[%s:%d] Error, touch to shm failed, %s \n", __FILE__, __LINE__, strerror(errno));
+        printf("[%s:%d] Error, touch to shm [key= %d,shmId %d] failed, %s \n", __FILE__, __LINE__, iKey, iShmID, strerror(errno));
         return -1;
     }
     else {
-        printf("Now remove the exist share memory %d \n", iShmID);
-        if (shmctl(iShmID, IPC_RMID, NULL)) {
-            printf("[%s:%d] Remove share memory failed, %s \n", __FILE__, __LINE__, strerror(errno));
-            return -1;
+        printf("Now disconnect the exist share memory [key= %d,shmId %d] \n",  iKey, iShmID);
+        if(shmdt(shmaddr)){
+            printf("[%s:%d] Disconnect share memory [key= %d,shmId %d] failed, %s \n", __FILE__, __LINE__,iKey, iShmID,strerror(errno));
+        } else{
+            printf("Disconnect the exist share memory [key= %d,shmId %d] succeed \n", iKey, iShmID);
         }
-        printf("Remove shared memory(isd = %d, key = %d) succeed. \n", iShmID, iKey);
+        printf("Now remove the exist share memory [key= %d,shmId %d] \n", iKey, iShmID);
+        if (shmctl(iShmID, IPC_RMID, NULL)) {
+            printf("[%s:%d] Remove share memory [key= %d,shmId %d] failed, %s \n", __FILE__, __LINE__, iKey, iShmID,strerror(errno));
+            return -1;
+        } else{
+            printf("Remove shared memory [key= %d,shmId %d] succeed. \n", iShmID, iKey);
+        }
     }
     return 0;
 }
@@ -488,7 +485,7 @@ CMessageQueue *CMessageQueue::CreateInstance(key_t shmkey,
         return nullptr;
     }
 
-    queuesize = RoundupPowofTwo(queuesize);
+    queuesize = IsPowerOfTwo(queuesize) ? queuesize : RoundupPowofTwo(queuesize);
     if(queuesize <= 0) {
         return nullptr;
     }
