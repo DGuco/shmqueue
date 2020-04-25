@@ -147,10 +147,9 @@ public:
     static CMessageQueue *CreateInstance(key_t shmkey,
                                          size_t queuesize,
                                          eQueueModel queueModule = eQueueModel::MUL_READ_MUL_WRITE);
-public:
+private:
     struct CACHELINE_ALIGN stMemTrunk
     {
-    public:
         /**
          * 0) 单线程读单线程写模型　https://blog.csdn.net/D_Guco/article/details/100066985
          * 1) 这里读写索引用int类型,cpu可以保证对float,double和long除外的基本类型的读写是原子的,保证一个线程不会读到另外一个线程写到一半的值
@@ -158,20 +157,16 @@ public:
          *    进程或者线程同时访问在一个cache line里不同的变量产生false sharing,
          */
         volatile unsigned int m_iBegin;
-        //char __cache_padding1__[CACHE_LINE_SIZE];
+        char __cache_padding1__[CACHE_LINE_SIZE];
         volatile unsigned int m_iEnd;
-        //char __cache_padding3__[CACHE_LINE_SIZE];
+        char __cache_padding3__[CACHE_LINE_SIZE];
         int m_iShmKey;
-        //char __cache_padding4__[CACHE_LINE_SIZE];
+        char __cache_padding4__[CACHE_LINE_SIZE];
         unsigned int m_iSize;
-        //char __cache_padding5__[CACHE_LINE_SIZE];
+        char __cache_padding5__[CACHE_LINE_SIZE];
         int m_iShmId;
-        //char __cache_padding6__[CACHE_LINE_SIZE];
+        char __cache_padding6__[CACHE_LINE_SIZE];
         eQueueModel m_eQueueModule;
-        stMemTrunk()
-        {}
-        ~stMemTrunk()
-        {}
     };
 private:
     stMemTrunk *m_stMemTrunk;
