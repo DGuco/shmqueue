@@ -21,6 +21,7 @@
 
 #define SHM_MIN(a,b) a < b ? a : b
 
+#define  CACHE_LINE_SIZE 64 //cache line 大小
 //内存屏障
 #define __MEM_BARRIER \
     __asm__ __volatile__("mfence":::"memory")
@@ -153,19 +154,19 @@ public:
         /**
          * 0) 单线程读单线程写模型　https://blog.csdn.net/D_Guco/article/details/100066985
          * 1) 这里读写索引用int类型,cpu可以保证对float,double和long除外的基本类型的读写是原子的,保证一个线程不会读到另外一个线程写到一半的值
-         * 2) 在变量之间插入一个64位(cache line的长度)的变量(没有实际的计算意义),但是可以保证两个变量不会同时在一个cache line里,防止不同的
+         * 2) 在变量之间插入一个64字节(cache line的长度)的变量(没有实际的计算意义),但是可以保证两个变量不会同时在一个cache line里,防止不同的
          *    进程或者线程同时访问在一个cache line里不同的变量产生false sharing,
          */
         volatile unsigned int m_iBegin;
-        long long __1;
+        //char __cache_padding1__[CACHE_LINE_SIZE];
         volatile unsigned int m_iEnd;
-        long long __2;
+        //char __cache_padding3__[CACHE_LINE_SIZE];
         int m_iShmKey;
-        long long __3;
+        //char __cache_padding4__[CACHE_LINE_SIZE];
         unsigned int m_iSize;
-        long long __4;
+        //char __cache_padding5__[CACHE_LINE_SIZE];
         int m_iShmId;
-        long long __5;
+        //char __cache_padding6__[CACHE_LINE_SIZE];
         eQueueModel m_eQueueModule;
         stMemTrunk()
         {}

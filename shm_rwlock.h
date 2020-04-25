@@ -62,9 +62,21 @@ protected:
 class CSafeShmRlock
 {
 public:
+    CSafeShmRlock() : m_pLock(NULL)
+    {
+    }
     CSafeShmRlock(CShmRWlock *pLock)
         : m_pLock(pLock)
     {
+        if (m_pLock != NULL)
+        {
+            m_pLock->Rlock();
+        }
+    }
+
+    void InitLock(CShmRWlock *pLock)
+    {
+        m_pLock = pLock;
         m_pLock->Rlock();
     }
 
@@ -79,15 +91,30 @@ private:
 class CSafeShmWlock
 {
 public:
+    CSafeShmWlock()
+            : m_pLock(NULL)
+    {
+
+    }
     CSafeShmWlock(CShmRWlock *pLock)
         : m_pLock(pLock)
     {
         m_pLock->Wlock();
     }
-    
+
+    void InitLock(CShmRWlock *pLock)
+    {
+        m_pLock = pLock;
+        m_pLock->Wlock();
+    }
+
+
     ~CSafeShmWlock()
     {
-        m_pLock->UnWlock();
+        if (m_pLock != NULL)
+        {
+            m_pLock->UnWlock();
+        }
     }
 private:
     CShmRWlock *m_pLock;

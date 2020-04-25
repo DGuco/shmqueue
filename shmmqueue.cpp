@@ -7,7 +7,6 @@
 #include <string.h>
 #include <cstdlib>
 #include <stdio.h>
-#include <memory>
 #include <sys/shm.h>
 #include <cmath>
 #include "shmmqueue.h"
@@ -20,6 +19,8 @@ CMessageQueue::CMessageQueue(BYTE *pCurrAddr)
     m_pQueueAddr = pCurrAddr;
     m_stMemTrunk = new (m_pQueueAddr) stMemTrunk();
     m_pQueueAddr += sizeof(stMemTrunk);
+    m_stMemTrunk->m_iBegin = 0;
+    m_stMemTrunk->m_iEnd = 0;
     InitLock();
 }
 
@@ -46,11 +47,11 @@ CMessageQueue::~CMessageQueue()
     }
     if (m_pBeginLock) {
         delete m_pBeginLock;
-        m_pBeginLock = nullptr;
+        m_pBeginLock = NULL;
     }
     if (m_pEndLock) {
         delete m_pEndLock;
-        m_pEndLock = nullptr;
+        m_pEndLock = NULL;
     }
 }
 
@@ -60,10 +61,10 @@ int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
         return (int) eQueueErrorCode::QUEUE_PARAM_ERROR;
     }
 
-    std::shared_ptr<CSafeShmWlock> lock = nullptr;
+    CSafeShmWlock tmLock;
     //修改共享内存写锁
     if (IsEndLock() && m_pEndLock) {
-        lock.reset(new CSafeShmWlock(m_pEndLock));
+        tmLock.InitLock(m_pEndLock);
     }
 
     // 首先判断是否队列已满
@@ -114,10 +115,10 @@ int CMessageQueue::GetMessage(BYTE *pOutCode)
         return (int) eQueueErrorCode::QUEUE_PARAM_ERROR;
     }
 
-    std::shared_ptr<CSafeShmWlock> lock = nullptr;
+    CSafeShmWlock tmLock;
     //修改共享内存写锁
     if (IsBeginLock() && m_pBeginLock) {
-        lock.reset(new CSafeShmWlock(m_pBeginLock));
+        tmLock.InitLock(m_pBeginLock);
     }
 
     int nTempMaxLength = GetDataSize();
@@ -178,10 +179,10 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
         return (int) eQueueErrorCode::QUEUE_PARAM_ERROR;
     }
 
-    std::shared_ptr<CSafeShmRlock> lock = nullptr;
+    CSafeShmRlock tmLock;
     //修改共享内存写锁
     if (IsBeginLock() && m_pBeginLock) {
-        lock.reset(new CSafeShmRlock(m_pBeginLock));
+        tmLock.InitLock(m_pBeginLock);
     }
 
     int nTempMaxLength = GetDataSize();
@@ -234,10 +235,10 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
   * */
 int CMessageQueue::DeleteHeadMessage()
 {
-    std::shared_ptr<CSafeShmWlock> lock = nullptr;
+    CSafeShmWlock tmLock;
     //修改共享内存写锁
     if (IsBeginLock() && m_pBeginLock) {
-        lock.reset(new CSafeShmWlock(m_pBeginLock));
+        tmLock.InitLock(m_pBeginLock);
     }
 
     int nTempMaxLength = GetDataSize();
@@ -482,12 +483,12 @@ CMessageQueue *CMessageQueue::CreateInstance(key_t shmkey,
 {
     if(queuesize <= 0)
     {
-        return nullptr;
+        return NULL;
     }
 
     queuesize = IsPowerOfTwo(queuesize) ? queuesize : RoundupPowofTwo(queuesize);
     if(queuesize <= 0) {
-        return nullptr;
+        return NULL;
     }
     enShmModule shmModule;
     int shmId = 0;
