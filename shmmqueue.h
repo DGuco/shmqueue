@@ -62,7 +62,6 @@ enum class enShmModule: unsigned char
 class CACHELINE_ALIGN CMessageQueue
 {
 private:
-    CMessageQueue(BYTE *pCurrAddr);
     /**
      *
      * @param module

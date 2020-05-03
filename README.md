@@ -5,6 +5,7 @@
   剩余内存的数据情况，消息内存区为一个环形内存区。如下图：<br>
   ![原理图](https://github.com/DGuco/shmqueue/raw/master/ringbuff.png)<br>
   [详细介绍](http://blog.csdn.net/suhuaiqiang_janlay/article/details/51194984),
+  [参考示例](https://elixir.bootlin.com/linux/v3.8.13/source/kernel/kfifo.c)
 - 写的时候移动end索引,读的时候移动begin索引,保证了在单进程读和单进程写的时候是线
   程安全的，多进程读多进成写时利用信号量集(一个读信号和写信号)实现进程间的共享内存读写锁来保证多进程安全。
 # 测试用例
@@ -59,3 +60,5 @@
    - ONE_READ_MUL_WRITE,   //一个进程读消息多个进程写消息
    - MUL_READ_ONE_WRITE,   //多个进程读消息一个进程写消息
    - MUL_READ_MUL_WRITE,   //多个进程读消息多个进程写消息
+- 如果需要创建多个共享内存队列且共享内存需要加锁，那么共创建共享内存的自定义的key不要连续，不同的key之间至少相隔2,读写锁分别用共享
+　内存的key的key+1和key+2作为读写锁信号量集的key

@@ -14,8 +14,8 @@
 
 using namespace shmmqueue;
 
-#define SHAR_ID_1 1234
-#define SHAR_ID_2 12345
+#define SHAR_KEY_1 100010
+#define SHAR_KEY_2 100020
 
 using namespace std;
 
@@ -155,7 +155,7 @@ void mul_write_func(CMessageQueue *writeQueue, int threadId, const char *mes)
 
 void SingleRWTest()
 {
-    CMessageQueue *messQueue = CMessageQueue::CreateInstance(SHAR_ID_2, 10240, eQueueModel::ONE_READ_ONE_WRITE);
+    CMessageQueue *messQueue = CMessageQueue::CreateInstance(SHAR_KEY_2, 10240, eQueueModel::ONE_READ_ONE_WRITE);
     long begin = getCurrentTime();
     thread read_thread(read_func, messQueue, 1, "SingleRWTest");
     thread write_thread(write_func, messQueue, 1, "SingleRWTest");
@@ -178,7 +178,7 @@ void SingleRWTest()
 
 void MulRWTest()
 {
-    CMessageQueue *messQueue = CMessageQueue::CreateInstance(SHAR_ID_1, 10240, eQueueModel::MUL_READ_MUL_WRITE);
+    CMessageQueue *messQueue = CMessageQueue::CreateInstance(SHAR_KEY_1, 10240, eQueueModel::MUL_READ_MUL_WRITE);
     read_count.store(0);
     write_count.store(0);
     done_flag.store(false);

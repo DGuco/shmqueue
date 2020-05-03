@@ -13,17 +13,6 @@
 
 namespace shmmqueue
 {
-CMessageQueue::CMessageQueue(BYTE *pCurrAddr)
-{
-    m_pShm = (void*) pCurrAddr;
-    m_pQueueAddr = pCurrAddr;
-    m_stMemTrunk = new (m_pQueueAddr) stMemTrunk();
-    m_pQueueAddr += sizeof(stMemTrunk);
-    m_stMemTrunk->m_iBegin = 0;
-    m_stMemTrunk->m_iEnd = 0;
-    InitLock();
-}
-
 CMessageQueue::CMessageQueue(BYTE *pCurrAddr, eQueueModel module, key_t shmKey, int shmId, size_t size)
 {
     m_pShm = (void*) pCurrAddr;
@@ -79,11 +68,10 @@ int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
     }
 
     MESS_SIZE_TYPE usInLength = length;
-
     BYTE *pTempDst = m_pQueueAddr;
     BYTE *pTempSrc = (BYTE *) (&usInLength);
 
-    //写入的时候我们在数据头插上数据的长度，方便准确取数据
+    //写入的时候我们在数据头插上数据的长度，方便准确取数据,每次写入一个字节可能会分散在队列的头和尾
     unsigned int tmpEnd = m_stMemTrunk->m_iEnd;
     for (MESS_SIZE_TYPE i = 0; i < sizeof(usInLength); i++) {
         pTempDst[tmpEnd] = pTempSrc[i];  // 拷贝 Code 的长度
@@ -274,8 +262,7 @@ int CMessageQueue::DeleteHeadMessage()
         return (int) eQueueErrorCode::QUEUE_DATA_SEQUENCE_ERROR;
     }
 
-    __WRITE_BARRIER__;
-    m_stMemTrunk->m_iBegin = (tmpBegin + usOutLength) % GetQueueLength();
+    m_stMemTrunk->m_iBegin = (tmpBegin + usOutLength) & (m_stMemTrunk->m_iSize -1);
     return usOutLength;
 }
 
@@ -324,11 +311,11 @@ unsigned int CMessageQueue::GetQueueLength()
 void CMessageQueue::InitLock()
 {
     if (IsBeginLock()) {
-        m_pBeginLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey));
+        m_pBeginLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 1));
     }
 
     if (IsEndLock()) {
-        m_pEndLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmId));
+        m_pEndLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 2));
     }
 }
 
@@ -360,10 +347,7 @@ BYTE *CMessageQueue::CreateShareMem(key_t iKey, long vSize, enShmModule &shmModu
     }
 
     iTempShmSize = (size_t) vSize;
-    //iTempShmSize += sizeof(CSharedMem);
-
     printf("Try to malloc share memory of %d bytes... \n", iTempShmSize);
-
     shmId = shmget(iKey, iTempShmSize, IPC_CREAT | IPC_EXCL | 0666);
     if (shmId < 0) {
         if (errno != EEXIST) {
@@ -373,21 +357,24 @@ BYTE *CMessageQueue::CreateShareMem(key_t iKey, long vSize, enShmModule &shmModu
         }
 
         printf("Same shm seg [key= %d] exist, now try to attach it... \n", iKey);
-
-        shmId = shmget(iKey, iTempShmSize, 0666);
+        shmId = shmget(iKey, iTempShmSize, IPC_CREAT | 0666);
         if (shmId < 0) {
-            printf("Attach to share memory [key= %d,shmId %d] failed, %s . Now try to touch it \n",iKey, shmId, strerror(errno));
+            printf("Attach to share memory [key= %d,shmId %d] failed,maybe the size of share memory changed,%s .now try to touch it again \n",
+                    iKey, shmId, strerror(errno));
+            //先获取之前的shmId
             shmId = shmget(iKey, 0, 0666);
             if (shmId < 0) {
                 printf("[%s:%d] Fatel error, touch to shm [key= %d,shmId %d] failed, %s.\n", __FILE__, __LINE__, iKey, shmId,strerror(errno));
                 exit(-1);
             }
             else {
+                //先删除之前的share memory
                 printf("First remove the exist share memory [key= %d,shmId %d] \n", iKey,shmId);
                 if (shmctl(shmId, IPC_RMID, NULL)) {
                     printf("[%s:%d] Remove share memory [key= %d,shmId %d] failed, %s \n", __FILE__, __LINE__, iKey,shmId,strerror(errno));
                     exit(-1);
                 }
+                //重新创建
                 shmId = shmget(iKey, iTempShmSize, IPC_CREAT | IPC_EXCL | 0666);
                 if (shmId < 0) {
                     printf("[%s:%d] Fatal error, alloc share memory [key= %d,shmId %d] failed, %s \n",
@@ -493,13 +480,7 @@ CMessageQueue *CMessageQueue::CreateInstance(key_t shmkey,
     enShmModule shmModule;
     int shmId = 0;
     BYTE * tmpMem = CMessageQueue::CreateShareMem(shmkey, queuesize + sizeof(stMemTrunk), shmModule,shmId);
-    CMessageQueue *messageQueue;
-    if (shmModule == enShmModule::SHM_INIT) {
-        messageQueue = new CMessageQueue(tmpMem,queueModule, shmkey,shmId, queuesize);
-    }
-    else {
-        messageQueue = new CMessageQueue(tmpMem);
-    }
+    CMessageQueue *messageQueue = new CMessageQueue(tmpMem,queueModule, shmkey,shmId, queuesize);
     messageQueue->PrintTrunk();
     return messageQueue;
 }
