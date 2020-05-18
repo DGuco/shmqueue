@@ -451,13 +451,19 @@ bool CMessageQueue::IsPowerOfTwo(size_t size) {
 }
 
 
-int CMessageQueue::CMessageQueue::Fls(size_t size) {
-    int r;
-    __asm__("bsrl %1,%0\n\t"
-            "jnz 1f\n\t"
-            "movl $-1,%0\n"
-            "1:" : "=r" (r) : "rm" (size));
-    return r+1;
+int CMessageQueue::Fls(size_t size) {
+    int position;
+    int i;
+    if(0 != size)
+    {
+        for (i = (size >> 1), position = 0; i != 0; ++position)
+            i >>= 1;
+    }
+    else
+    {
+        position = -1;
+    }
+    return position + 1;
 }
 
 size_t CMessageQueue::RoundupPowofTwo(size_t size) {
